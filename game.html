@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Page</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomCode = urlParams.get('room');
+
+    let currentTurn = 0;
+    let questions = [];
+    let teamAScore = 0;
+    let teamBScore = 0;
+
+    const questionDiv = document.getElementById('question-area');
+    const optionsDiv = document.getElementById('options');
+    const modal = document.getElementById('results-modal');
+    const resultText = document.getElementById('result-text');
+
+    async function fetchQuestions() {
+      const querySnapshot = await getDocs(collection(db, "questions"));
+      querySnapshot.forEach((doc) => {
+        questions.push(doc.data());
+      });
+      questions = questions.sort(() => Math.random() - 0.5); // shuffle
+      showQuestion();
+    }
+
+    function showQuestion() {
+      if (currentTurn >= 2) {
+        endGame();
+        return;
+      }
+      const q = questions[currentTurn];
+      const team = currentTurn % 2 === 0 ? 'Team A' : 'Team B';
+      questionDiv.innerHTML = `${team}'s Turn: ${q.question}`;
+      optionsDiv.innerHTML = '';
+      q.options.forEach(option => {
+        const btn = document.createElement('button');
+        btn.textContent = option;
+        btn.onclick = () => handleAnswer(option, q.answer);
+        optionsDiv.appendChild(btn);
+      });
+    }
+
+    function handleAnswer(selected, correct) {
+      if (selected === correct) {
+        if (currentTurn % 2 === 0) teamAScore++;
+        else teamBScore++;
+      }
+      currentTurn++;
+      showQuestion();
+    }
+
+    function endGame() {
+      let winner;
+      if (teamAScore > teamBScore) winner = "Team A Wins!";
+      else if (teamBScore > teamAScore) winner = "Team B Wins!";
+      else winner = "It's a tie!";
+
+      resultText.innerHTML = `Team A: ${teamAScore}<br>Team B: ${teamBScore}<br><strong>${winner}</strong>`;
+      modal.style.display = 'block';
+    }
+
+    fetchQuestions();
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    .teams {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+    .team {
+      width: 45%;
+      padding: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+    }
+    #question-area {
+      margin-top: 2rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    #options button {
+      display: block;
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    #results-modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 2rem;
+      border: 2px solid #333;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="teams">
+    <div class="team" id="team-a">Team A</div>
+    <div class="team" id="team-b">Team B</div>
+  </div>
+  <div id="question-area"></div>
+  <div id="options"></div>
+
+  <div id="results-modal">
+    <div id="result-text"></div>
+  </div>
+</body>
+
+</html>

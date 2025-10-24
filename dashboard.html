@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AceLoop Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <!-- Navbar -->
+  <nav class="bg-white shadow-md p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold text-blue-600">AceLoop</h1>
+    <div>
+      <button onclick="logout()">Log out</button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">Welcome to your Dashboard</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Fast-Track Learning -->
+      <a href="/fasttrack.html" class="bg-white rounded-xl p-6 shadow hover:shadow-lg transition">
+        <h3 class="text-lg font-semibold text-blue-600 mb-2">🚀 Fast-Track Learning</h3>
+        <p class="text-gray-600">Complete an entire WASSCE subject in a month with structured video lessons.</p>
+      </a>
+
+      <!-- Genius Channels -->
+      <a href="/channels.html" class="bg-white rounded-xl p-6 shadow hover:shadow-lg transition">
+        <h3 class="text-lg font-semibold text-green-600 mb-2">🌟 Genius Channels</h3>
+        <p class="text-gray-600">View & share student-made creative solutions and genius ideas.</p>
+      </a>
+
+      <!-- Video Lessons -->
+      <a href="/lessons.html" class="bg-white rounded-xl p-6 shadow hover:shadow-lg transition">
+        <h3 class="text-lg font-semibold text-purple-600 mb-2">📺 Video Lessons</h3>
+        <p class="text-gray-600">Watch subject-based YouTube lessons curated for WASSCE preparation.</p>
+      </a>
+
+      <a href="/lobby.html" class="bg-white rounded-xl p-6 shadow hover:shadow-lg transition">
+        <h3 class="text-lg font-semibold text-purple-600 mb-2">Contest in a Quiz</h3>
+        <p class="text-gray-600">Join a quiz contest and compete with others.</p>
+      </a>
+    </div>
+  </div>
+
+  <script type="module">
+  import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDdoGNhKziEGlvNdw-1NAF_IYo0QRxbHb8",
+    authDomain: "aceloop-6ad31.firebaseapp.com",
+    projectId: "aceloop-6ad31",
+    storageBucket: "aceloop-6ad31.appspot.com",
+    messagingSenderId: "765144945852",
+    appId: "1:765144945852:web:4e841bb57aff0d4eadecb9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  window.logout = async function logout() {
+    try {
+      await signOut(auth);
+      window.location.href = "login.html";
+    } catch (error) {
+      alert("Logout failed: " + error.message);
+    }
+  };
+</script>
+
+</body>
+</html>

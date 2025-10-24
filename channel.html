@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Channel View - AceLoop</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans">
+  <div class="max-w-3xl mx-auto p-6 bg-white shadow-lg rounded-lg mt-10">
+    <h2 id="channelTitle" class="text-2xl font-bold text-blue-600 mb-4">🔁 Loading Channel...</h2>
+
+    <form id="postForm" class="space-y-4">
+      <h3 class="text-lg font-semibold">Add a Genius Post</h3>
+      <textarea id="postText" rows="3" placeholder="Write your genius solution or idea..." required
+        class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"></textarea>
+      <input type="url" id="videoLink" placeholder="Optional: Paste YouTube Video Link"
+        class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <button type="submit"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">🚀 Post</button>
+    </form>
+
+    <hr class="my-6"/>
+
+    <h3 class="text-xl font-semibold mb-4">🧠 Genius Posts</h3>
+    <ul id="postList" class="space-y-6"></ul>
+
+    <div class="mt-8">
+      <a href="channels.html" class="text-blue-600 hover:underline">⬅ Back to Channels</a>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const channelId = urlParams.get("id");
+    const channels = JSON.parse(localStorage.getItem("geniusChannels")) || [];
+
+    if (!channelId || !channels[channelId]) {
+      document.body.innerHTML = "<p class='text-center mt-10 text-red-600'>Channel not found. Go back to <a href='channels.html' class='text-blue-500 underline'>channels</a>.</p>";
+    } else {
+      const channel = channels[channelId];
+      document.getElementById("channelTitle").textContent = `🌟 ${channel.name} - ${channel.subject}`;
+
+      const postList = document.getElementById("postList");
+      const postForm = document.getElementById("postForm");
+
+      function renderPosts() {
+        postList.innerHTML = '';
+        channel.posts.forEach(post => {
+          const li = document.createElement("li");
+          li.className = "bg-gray-100 p-4 rounded-lg shadow";
+          li.innerHTML = `
+            <p class="mb-2 text-gray-800">${post.text}</p>
+            ${post.video ? `<iframe class="w-full rounded" height="200" src="https://www.youtube.com/embed/${post.video}" frameborder="0" allowfullscreen></iframe>` : ''}
+          `;
+          postList.appendChild(li);
+        });
+      }
+
+      postForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = document.getElementById("postText").value;
+        const videoURL = document.getElementById("videoLink").value;
+
+        let videoId = null;
+        if (videoURL.includes("youtube.com") || videoURL.includes("youtu.be")) {
+          const match = videoURL.match(/(?:youtube\.com\/.*v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+          videoId = match ? match[1] : null;
+        }
+
+        channel.posts.push({ text, video: videoId });
+        channels[channelId] = channel;
+        localStorage.setItem("geniusChannels", JSON.stringify(channels));
+
+        postForm.reset();
+        renderPosts();
+      });
+
+      renderPosts();
+    }
+  </script>
+</body>
+</html>

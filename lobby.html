@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiplayer Quiz Game</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getDatabase, ref, set, onValue, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDdoGNhKziEGlvNdw-1NAF_IYo0QRxbHb8",
+      authDomain: "aceloop-6ad31.firebaseapp.com",
+      databaseURL: "https://aceloop-6ad31-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "aceloop-6ad31",
+      storageBucket: "aceloop-6ad31.firebasestorage.app",
+      messagingSenderId: "765144945852",
+      appId: "1:765144945852:web:4e841bb57aff0d4eadecb9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const rtdb = getDatabase(app);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          document.getElementById("username").textContent = userDoc.data().name || "Player";
+          document.getElementById("profile-pic").src = userDoc.data().photoURL || "https://via.placeholder.com/50";
+        }
+      } else {
+        window.location.href = "/login.html";
+      }
+    });
+
+    function generateGameCode(length = 6) {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    }
+
+    document.querySelectorAll("button").forEach(btn => {
+      const mode = btn.closest("div").querySelector("h2")?.textContent || "";
+
+      if (btn.textContent.includes("Create Game")) {
+        btn.addEventListener("click", async () => {
+          const user = auth.currentUser;
+          if (!user) return alert("You must be logged in.");
+
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const name = userDoc.exists() ? userDoc.data().name : "Player";
+
+          const gameCode = generateGameCode();
+          const gameRef = ref(rtdb, `gameRooms/${gameCode}`);
+
+          await set(gameRef, {
+            createdAt: Date.now(),
+            mode: mode.includes("2v2") ? "2v2" : "1v1",
+            players: {
+              [user.uid]: {
+                name,
+                team: "A"
+              }
+            },
+            status: "waiting"
+          });
+
+          alert(`Game created! Share this code: ${gameCode}`);
+          window.location.href = `/waiting-room.html?gameCode=${gameCode}`;
+        });
+      }
+
+      if (btn.textContent.includes("Join with Code")) {
+        btn.addEventListener("click", async () => {
+          const user = auth.currentUser;
+          if (!user) return alert("You must be logged in.");
+
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const name = userDoc.exists() ? userDoc.data().name : "Player";
+
+          const gameCode = prompt("Enter the game code:");
+          if (!gameCode) return;
+
+          const gameRef = ref(rtdb, `gameRooms/${gameCode}`);
+          const snapshot = await get(gameRef);
+
+          if (!snapshot.exists()) {
+            return alert("Game not found.");
+          }
+
+          const gameData = snapshot.val();
+          const playerCount = Object.keys(gameData.players || {}).length;
+          const maxPlayers = gameData.mode === "2v2" ? 4 : 2;
+
+          if (playerCount >= maxPlayers) {
+            return alert("Game is full.");
+          }
+
+          const team = Object.values(gameData.players).some(p => p.team === "A") ? "B" : "A";
+
+          await set(ref(rtdb, `gameRooms/${gameCode}/players/${user.uid}`), {
+            name,
+            team
+          });
+
+          alert(`Joined game ${gameCode} as Team ${team}`);
+          window.location.href = `/waiting-room.html?gameCode=${gameCode}`;
+        });
+      }
+
+      if (btn.textContent.includes("Random Match")) {
+        btn.addEventListener("click", async () => {
+          const user = auth.currentUser;
+          if (!user) return alert("You must be logged in.");
+
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const name = userDoc.exists() ? userDoc.data().name : "Player";
+
+          const matchType = mode.includes("2v2") ? "2v2" : "1v1";
+          const gameRoomsRef = ref(rtdb, "gameRooms");
+
+          try {
+            const snapshot = await get(gameRoomsRef);
+            const rooms = snapshot.val() || {};
+
+            let foundRoomKey = null;
+            let foundRoomData = null;
+
+            for (const key in rooms) {
+              const room = rooms[key];
+              const playerCount = Object.keys(room.players || {}).length;
+              const maxPlayers = room.mode === "2v2" ? 4 : 2;
+
+              if (room.status === "waiting" && room.mode === matchType && playerCount < maxPlayers) {
+                foundRoomKey = key;
+                foundRoomData = room;
+                break;
+              }
+            }
+
+            if (foundRoomKey) {
+              const team = Object.values(foundRoomData.players).some(p => p.team === "A") ? "B" : "A";
+              await set(ref(rtdb, `gameRooms/${foundRoomKey}/players/${user.uid}`), {
+                name,
+                team
+              });
+
+              alert(`Joined random game ${foundRoomKey} as Team ${team}`);
+              window.location.href = `/waiting-room.html?gameCode=${foundRoomKey}`;
+            } else {
+              const gameCode = generateGameCode();
+              const gameRef = ref(rtdb, `gameRooms/${gameCode}`);
+
+              await set(gameRef, {
+                createdAt: Date.now(),
+                mode: matchType,
+                players: {
+                  [user.uid]: {
+                    name,
+                    team: "A"
+                  }
+                },
+                status: "waiting"
+              });
+
+              alert(`No match found. New game created! Share this code: ${gameCode}`);
+              window.location.href = `/waiting-room.html?gameCode=${gameCode}`;
+            }
+
+          } catch (err) {
+            console.error("Error in random match:", err);
+            alert("Something went wrong. Try again.");
+          }
+        });
+      }
+    });
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white min-h-screen flex flex-col items-center justify-start p-6">
+  <div class="w-full max-w-3xl mt-6">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-4">
+        <img id="profile-pic" class="w-12 h-12 rounded-full border-2 border-purple-400" alt="Profile Picture">
+        <span id="username" class="text-lg font-semibold"></span>
+      </div>
+      <button onclick="window.location.href='/dashboard.html'" class="text-sm bg-purple-700 px-3 py-1 rounded hover:bg-purple-600">Back to Dashboard</button>
+    </div>
+
+    <h1 class="text-3xl font-bold text-center mb-4">Choose Game Mode</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-purple-800 rounded-2xl p-6 shadow-lg hover:scale-105 transform transition duration-300">
+        <h2 class="text-xl font-bold mb-2">1v1 Mode</h2>
+        <button class="bg-purple-600 hover:bg-purple-500 text-sm px-4 py-2 rounded">Random Match</button>
+        <button class="bg-purple-600 hover:bg-purple-500 text-sm px-4 py-2 rounded ml-2">Join with Code</button>
+        <button class="bg-purple-600 hover:bg-purple-500 text-sm px-4 py-2 rounded ml-2">Create Game</button>
+      </div>
+      <div class="bg-purple-800 rounded-2xl p-6 shadow-lg hover:scale-105 transform transition duration-300">
+        <h2 class="text-xl font-bold mb-2">2v2 Mode</h2>
+        <button class="bg-purple-600 hover:bg-purple-500 text-sm px-4 py-2 rounded">Random Match</button>
+        <button class="bg-purple-600 hover:bg-purple-500 text-sm px-4 py-2 rounded ml-2">Join with Code</button>
+        <button class="bg-purple-600 hover:bg-purple-500 text-sm px-4 py-2 rounded ml-2">Create Game</button>
+      </div>
+      <div class="bg-yellow-800 rounded-2xl p-6 shadow-lg hover:scale-105 transform transition duration-300">
+        <h2 class="text-xl font-bold mb-2">Tournament Mode</h2>
+        <p class="text-sm">Join the weekly tournament and compete with top students!</p>
+        <button class="bg-yellow-600 hover:bg-yellow-500 text-sm px-4 py-2 rounded mt-3">View Tournaments</button>
+      </div>
+    </div>
+
+    <div class="mt-10 p-4 bg-purple-950 rounded-xl">
+      <h3 class="text-lg font-semibold mb-2">Active Players: <span id="active-players">...</span></h3>
+      <p class="text-sm">Tip: Join a match early for faster pairing. Team names are assigned automatically.</p>
+      <div class="mt-2">
+        <h4 class="text-md font-bold">Leaderboard Preview</h4>
+        <ul class="text-sm list-disc ml-6 mt-1">
+          <li>1. Ama K. - 340 pts</li>
+          <li>2. Kwame M. - 320 pts</li>
+          <li>3. Yaa A. - 310 pts</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

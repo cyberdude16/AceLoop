@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Waiting Room</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDdoGNhKziEGlvNdw-1NAF_IYo0QRxbHb8",
+      authDomain: "aceloop-6ad31.firebaseapp.com",
+      databaseURL: "https://aceloop-6ad31-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "aceloop-6ad31",
+      storageBucket: "aceloop-6ad31.firebasestorage.app",
+      messagingSenderId: "765144945852",
+      appId: "1:765144945852:web:4e841bb57aff0d4eadecb9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameCode = urlParams.get("gameCode");
+    document.getElementById("game-code").textContent = gameCode;
+
+    const gameRef = ref(db, `gameRooms/${gameCode}`);
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) return (window.location.href = "/login.html");
+
+      onValue(gameRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return alert("Game not found.");
+
+        const players = data.players || {};
+        const teamA = [];
+        const teamB = [];
+
+        Object.values(players).forEach(player => {
+          if (player.team === "A") teamA.push(player.name);
+          else teamB.push(player.name);
+        });
+
+        document.getElementById("team-a").innerHTML = teamA.map(p => `<li>${p}</li>`).join("");
+        document.getElementById("team-b").innerHTML = teamB.map(p => `<li>${p}</li>`).join("");
+
+        const totalPlayers = Object.keys(players).length;
+        const requiredPlayers = data.mode === "2v2" ? 4 : 2;
+
+        const isCreator = players[user.uid]?.team === "A" && totalPlayers >= requiredPlayers;
+        const startBtn = document.getElementById("start-btn");
+        startBtn.style.display = isCreator ? "block" : "none";
+
+        if (data.status === "started") {
+          window.location.href = `/game.html?gameCode=${gameCode}`;
+        }
+      });
+
+      document.getElementById("start-btn").addEventListener("click", () => {
+        set(ref(db, `gameRooms/${gameCode}/status`), "started");
+      });
+    });
+  </script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-6">
+  <div class="bg-purple-800 rounded-xl p-6 shadow-lg w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-4 text-center">Waiting Room</h1>
+    <p class="text-center mb-4">Game Code: <span class="font-mono text-yellow-400" id="game-code"></span></p>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <h2 class="text-lg font-semibold mb-1">Team A</h2>
+        <ul id="team-a" class="list-disc list-inside text-sm"></ul>
+      </div>
+      <div>
+        <h2 class="text-lg font-semibold mb-1">Team B</h2>
+        <ul id="team-b" class="list-disc list-inside text-sm"></ul>
+      </div>
+    </div>
+
+    <button id="start-btn" class="mt-6 w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-2 px-4 rounded hidden">
+      Start Game
+    </button>
+  </div>
+</body>
+</html>
