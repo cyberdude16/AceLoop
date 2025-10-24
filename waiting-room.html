@@ -6,19 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script type="module">
+    <script src="firebase.js"></script>
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDdoGNhKziEGlvNdw-1NAF_IYo0QRxbHb8",
-      authDomain: "aceloop-6ad31.firebaseapp.com",
-      databaseURL: "https://aceloop-6ad31-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "aceloop-6ad31",
-      storageBucket: "aceloop-6ad31.firebasestorage.app",
-      messagingSenderId: "765144945852",
-      appId: "1:765144945852:web:4e841bb57aff0d4eadecb9"
-    };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
